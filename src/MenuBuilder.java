@@ -8,7 +8,7 @@ public class MenuBuilder {
     public String mainMenu() {
 
         // Initializing choice String variable.
-        String choice = "";
+        String choice;
 
         // Running menu method in loop for the case of using incorrect menu option.
         // Selected menu option number is returned from method as String.
@@ -48,7 +48,7 @@ public class MenuBuilder {
     public String projectEditMenu() {
 
         // Initializing choice variable.
-        String choice = "";
+        String choice;
 
         // Running menu method in loop for the case of using incorrect menu option.
         // Selected menu option number is returned from method as String.

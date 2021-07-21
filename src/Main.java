@@ -1,24 +1,18 @@
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Scanner;
+import java.sql.Connection;
 
 public class Main {
 
     // Main method.
     public static void main(String[] args) {
 
-        // Initializing class to access files.
-        FileAccess accessFile = new FileAccess();
-        DataBuilder buildData = new DataBuilder();
-        String projectFile = "projectInfo.ser";
-        Scanner userInput = new Scanner(System.in).useDelimiter("\n");
-
-        // Using method to recall previously saved project data as list.
-        List<ProjectScope> projectData = accessFile.fileReader(projectFile);
-
         // Initializing external modules.
         MenuBuilder menu = new MenuBuilder();
+        DBAccess database = new DBAccess();
+        Login signIn = new Login();
+
+        // Running methods to get connection to SQL and retrieve engineer id from 'login' table.
+        Connection connection = signIn.loginConnect();
+        int engineerId = signIn.programLogin(connection);
 
         // Introduction message.
         System.out.print("""
@@ -35,53 +29,50 @@ public class Main {
             if (choice.equals("1")) {
 
                 // Initializing project and person creator class.
-                ProjectBuilder newProjectInstance = new ProjectBuilder();
-                PersonBuilder newPersonInstance = new PersonBuilder();
+                ObjectBuilder newObjectInstance = new ObjectBuilder();
 
                 // Initializing and running project compiler and running methods to build new project,
                 // new architect, contractor and customer as objects within the project compiler.
                 ProjectScope newProject = new ProjectScope
-                        (newProjectInstance.buildProject(),
-                                newPersonInstance.buildArchitect(),
-                                newPersonInstance.buildContractor(),
-                                newPersonInstance.buildCustomer());
+                        (newObjectInstance.buildProject(),
+                                newObjectInstance.buildArchitect(),
+                                newObjectInstance.buildContractor(),
+                                newObjectInstance.buildCustomer());
 
-                // Adding newly created project data to project list.
-                projectData.add(newProject);
-
-                // Writing modified list back to file.
-                accessFile.fileWriter(projectData, projectFile);
+                // Running method to write all new information to relevant tables.
+                database.DBWriter(connection, newProject, engineerId);
             }
 
             // Selecting option 2: edit existing project.
             if (choice.equals("2")) {
 
                 ProjectEditor modifyProject = new ProjectEditor();
-                modifyProject.editProject(projectFile);
+                modifyProject.editProject(connection);
             }
 
             // Selecting option 3: finalizing existing projects.
             if (choice.equals("3")) {
 
-                ProjectFinalizer projectComplete = new ProjectFinalizer();
-                projectComplete.finalizeProject(projectFile);
+                ProjectEditor projectComplete = new ProjectEditor();
+                projectComplete.finalizeProject(connection);
             }
 
             // Selecting option 4: view ongoing projects.
             if (choice.equals("4")) {
-                buildData.getOngoingProjects(projectFile);
+                ProjectSearchEngine searchData = new ProjectSearchEngine();
+                searchData.getOngoingProjects(connection);
             }
 
             // Selecting option 5: view overdue projects.
             if (choice.equals("5")) {
-                buildData.getOverdueProjects(projectFile);
+                ProjectSearchEngine searchData = new ProjectSearchEngine();
+                searchData.getOverdueProjects(connection);
             }
 
             // Selecting option 6: find project.
             if (choice.equals("6")) {
-
-                ProjectSearchEngine search = new ProjectSearchEngine();
-                search.searchProjectDatabase(projectFile);
+                ProjectSearchEngine searchData = new ProjectSearchEngine();
+                searchData.searchProjectDatabase(connection);
             }
 
             // Selecting option 7: exit program.

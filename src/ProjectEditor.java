@@ -1,44 +1,28 @@
+import java.sql.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Date;
 
 public class ProjectEditor {
 
     // Method to edit a specific project.
-    public void editProject(String filePath) {
+    public void editProject(Connection connection) {
 
-        // Initializing relevant classes.
         MenuBuilder menu = new MenuBuilder();
-        FileAccess accessFile = new FileAccess();
+        Scanner userInput = new Scanner(System.in).useDelimiter("\n");
 
-        // Calling all project data as list from file.
-        List<ProjectScope> projectData = accessFile.fileReader(filePath);
-
-        // Running method to find and return a project to edit.
-        List <ProjectScope> projectToEdit = extractProject(projectData);
-
-        // Running edit menu method.
         String editChoice = menu.projectEditMenu();
 
-        ProjectScope fullProject = projectToEdit.get(0);
-        ProjectObject project = fullProject.getProject();
-        PersonObject contractor = fullProject.getContractor();
+        System.out.print("\nEnter project number to edit: ");
+        String projectDetail = userInput.next();  // Capturing user keyword.
 
-        // Running local helper method to edit the project details based on user input.
-        getEditCommand(editChoice, project, contractor);
+        // Creating instance of project number removing the non digit "PP" code the user will have on his record.
+        String projectNo = projectDetail.replaceAll("[^\\d]", "");
+        projectNo = projectNo.trim();
 
-        projectData.add(fullProject);
-
-        // Writing list with modified internal objects back to file.
-        accessFile.fileWriter(projectData, filePath);
-    }
-
-    // Helper method to verify what part of the project the user wants to edit.
-    // After command is recognized project data is modified as required and the details are output
-    // afterwards for user to check the changes that have been made.
-    private void getEditCommand(String editChoice, ProjectObject project, PersonObject contractor) {
-
-        Scanner userInput = new Scanner(System.in).useDelimiter("\n");
+        // Converting number to integer after removing any white space.
+        int projectNumber = Integer.parseInt(projectNo);
 
         // If user selects to edit deadline date.
         switch (editChoice) {
@@ -46,10 +30,10 @@ public class ProjectEditor {
 
                 // Initializing deadline and date format as variables.
                 SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-                String newDeadline = null;
+                String newDeadline;
 
                 // Try catch loop to check that date is in format that can be parsed.
-                while(true) {
+                while (true) {
                     try {
                         System.out.print("Enter deadline date in YYYY-MM-DD format: ");
                         Date dateDeadline = dateFormat.parse(userInput.next());
@@ -61,8 +45,19 @@ public class ProjectEditor {
                     }
                 }
 
-                // Amending new information to pre created 'newProject'.
-                project.setDateDeadline(newDeadline);
+                try {
+                    // SQL statement to update deadline on database.
+                    PreparedStatement updateProject = connection.prepareStatement(
+                            "update projects set project_deadline = ? where project_no = ?"
+                    );
+
+                    // Adding values to prepared statement.
+                    updateProject.setString(1, newDeadline);
+                    updateProject.setInt(2, projectNumber);
+
+                } catch (SQLException error) {
+                    System.out.print("Error while trying to access SQL database.");
+                }
             }
 
             // If user selects to update total paid to date by customer.
@@ -82,8 +77,19 @@ public class ProjectEditor {
                     }
                 }
 
-                // Amending new information to pre created 'newProject'.
-                project.setPaidToDate(newPaidToDate);
+                try {
+                    // SQL statement to update paid to date on database.
+                    PreparedStatement updateProject = connection.prepareStatement(
+                            "update projects set paid_to_date = ? where project_no = ?"
+                    );
+
+                    // Adding values to prepared statement.
+                    updateProject.setInt(1, newPaidToDate);
+                    updateProject.setInt(2, projectNumber);
+
+                } catch (SQLException error) {
+                    System.out.print("Error while trying to access SQL database.");
+                }
             }
 
             // If user selects to update contactor's contact details.
@@ -95,48 +101,137 @@ public class ProjectEditor {
                 System.out.print("\nUpdate contractor email:");
                 String newEmail = userInput.next();
 
-                // Amending new information to pre created 'newProject'.
-                contractor.setPhoneNumber(newNumber);
-                contractor.setEmail(newEmail);
+                try {
+                    // SQL statement to update paid to date on database.
+                    PreparedStatement updateProject = connection.prepareStatement(
+                            """
+                                   update contractors
+                                   inner join project_overview
+                                   on contractors.contractor_id = project_overview.contractor_id
+                                   inner join projects
+                                   on projects.project_no = project_overview.project_no
+                                   set contractors.phone_no = ?,
+                                   contractors.email = ?
+                                   where projects.project_no = ?
+                                   """
+                    );
+
+                    // Adding values to prepared statement.
+                    updateProject.setString(1, newNumber);
+                    updateProject.setString(2, newEmail);
+                    updateProject.setInt(3, projectNumber);
+
+                } catch (SQLException error) {
+                    System.out.print("Error while trying to access SQL database.");
+                }
             }
         }
-
-        // Returns an overview of the project as String with the changes made.
-        System.out.print(project.toString() +
-                "\n" + contractor.toString());
     }
 
-    // Method to find a specific project based on project name or number.
-    public List extractProject(List projectData) {
+    // Method to generate an invoice and finalize the project.
+    public void finalizeProject(Connection connection) {
 
         // Initializing relevant classes.
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Setting date formatting.
+        Date todayDate = new Date();  // Initializing an instance of current date.
         Scanner userInput = new Scanner(System.in).useDelimiter("\n");
-        DataBuilder buildData = new DataBuilder();
 
-        // New list created for searched project.
-        List<ProjectScope> projectFound = new ArrayList<>();
+        // Creating relevant variables.
+        int projectBalance = 0;
+        String newStatus = "Completed";
+        String today = dateFormat.format(todayDate);  // Formatting current date to String in preferred format.
 
-        System.out.print("\nEnter name or number of project to edit: ");
-        String projectChoice = userInput.next();  // Capturing user input.
+        System.out.print("\nEnter project number to edit: ");
+        String projectDetail = userInput.next();  // Capturing user keyword.
 
-        // Iterates over projects list.
-        Iterator<ProjectScope> iterateCompiler = projectData.iterator();
-        while (iterateCompiler.hasNext()) {
-            ProjectScope project = iterateCompiler.next();
+        // Creating instance of project number removing the non digit "PP" code the user will have on his record.
+        String projectNo = projectDetail.replaceAll("[^\\d]", "");
+        projectNo = projectNo.trim();
 
-            // When user input matches relevant project detail the project is removed from the
-            // original list and added to a new list for editing.
-            if (project.getProject().getProjectName().equalsIgnoreCase(projectChoice)
-            || project.getProject().getProjectNumber().equalsIgnoreCase(projectChoice)) {
-                iterateCompiler.remove();
-                projectFound.add(project);
+        // Converting number to integer after removing any white space.
+        int projectNumber = Integer.parseInt(projectNo);
+
+        try {
+
+            // Initializing java SQL statement.
+            Statement statement = connection.createStatement();
+
+            // SQL statement to update deadline on database.
+            PreparedStatement updateProject = connection.prepareStatement(
+                    "update projects set project_status = ?, completion_date = ? where project_no = ?"
+            );
+
+            // Adding values to prepared statement.
+            updateProject.setString(1, newStatus);
+            updateProject.setString(2, today);
+            updateProject.setInt(3, projectNumber);
+
+            ResultSet results = statement.executeQuery("select project_fee, paid_to_date from projects " +
+                    "where project_no = " + projectNo);
+
+            while (results.next()) {
+                projectBalance = ((results.getInt(1)) - (results.getInt(2)));
             }
+
+        } catch (SQLException error) {
+            System.out.print("Error while trying to access SQL database.");
         }
 
-        // Found project details is output to user for visual confirmation.
-        buildData.outputAllProjectData(projectFound);
+        // Generates an invoice String if there is a balance on the project.
+        if (projectBalance > 0) {
 
-        // Found project is returned from method.
-        return projectFound;
+            try {
+
+                // Initializing java SQL statement.
+                Statement statement = connection.createStatement();
+
+                // Sending SQL command to database.
+                ResultSet foundProject = statement.executeQuery("select " +
+                        "projects.project_no, " +
+                        "projects.project_name, " +
+                        "projects.project_fee, " +
+                        "projects.paid_to_date, " +
+                        "customers.name, " +
+                        "customers.surname, " +
+                        "customers.phone_no, " +
+                        "customers.email, " +
+                        "customers.address " +
+                        "from project_overview " +
+                        "inner join architects " +
+                        "on architects.architect_id = project_overview.architect_id " +
+                        "inner join contractors " +
+                        "on contractors.contractor_id = project_overview.contractor_id " +
+                        "inner join customers " +
+                        "on customers.customer_id = project_overview.customer_id " +
+                        "inner join projects " +
+                        "on projects.project_no = project_overview.project_no " +
+                        "where " +
+                        "projects.project_no = " + projectNumber);
+
+                // Iterate through SQL query and output all information to user.
+                while (foundProject.next()) {
+
+                    System.out.println("\nPOISED PROJECT INVOICE");
+                    System.out.println("\nProject No: PP" + projectNumber);
+                    System.out.println("Project Name: " + foundProject.getString(2));
+                    System.out.println("Customer Name: " + foundProject.getString(5));
+                    System.out.println("Customer Surname: " + foundProject.getString(6));
+                    System.out.println("Customer Phone No: " + foundProject.getString(7));
+                    System.out.println("Customer Email: " + foundProject.getString(8));
+                    System.out.println("Customer Address: " + foundProject.getString(9));
+                    System.out.println("Project Fee: R" + foundProject.getInt(3));
+                    System.out.println("Paid To Date: R" + foundProject.getInt(4));
+                    System.out.println("Project Balance: R" + projectBalance);
+
+                }
+
+            } catch (SQLException error) {
+                System.out.print("Error while trying to access SQL database.");
+            }
+
+        } else {
+            System.out.print("The project fee has been settled in full.");
+
+        }
     }
 }

@@ -31,8 +31,8 @@ public class ProjectObject implements Serializable {
     }
 
     // Setting getter methods for relevant project attributes.
-    public String getProjectNumber() { return projectNumber; }
     public String getProjectName() { return projectName; }
+    public String getBuildingType() { return buildingType; }
     public String getErfNumber() { return erfNumber; }
     public String getProjectAddress() { return projectAddress; }
     public int getProjectFee() { return projectFee; }
@@ -40,12 +40,6 @@ public class ProjectObject implements Serializable {
     public String getDateDeadline() { return dateDeadline; }
     public String getProjectStatus() { return projectStatus; }
     public String getCompleteDate() { return completeDate; }
-
-    // Setting setter methods for relevant project attributes.
-    public void setPaidToDate(int newPaidToDate) { paidToDate = newPaidToDate; }
-    public void setDateDeadline(String newDateDeadLine) { dateDeadline = newDateDeadLine; }
-    public void setProjectStatus(String newProjectStatus) { projectStatus = newProjectStatus; }
-    public void setCompleteDate(String newCompleteDate) { completeDate = newCompleteDate; }
 
     // Adding toString method to project object
     public String toString() {

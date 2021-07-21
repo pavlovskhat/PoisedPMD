@@ -24,12 +24,9 @@ public class PersonObject implements Serializable {
     // Setting getter methods for required attributes.
     public String getName() { return name; }
     public String getSurname() { return surname; }
-
-    // Setting setter methods for required attributes.
-    public void setPhoneNumber(String newPhoneNumber) { phoneNumber = newPhoneNumber; }
-    public void setEmail(String newEmail){
-        email = newEmail;
-    }
+    public String getPhoneNumber() { return phoneNumber; }
+    public String getEmail() { return email; }
+    public String getAddress() { return address; }
 
     // Project person toString output method.
     public String toString() {
